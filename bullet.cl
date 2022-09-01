@@ -242,7 +242,7 @@
 (defun check-less (s a b) (< a (+ b s)))
 (defun check-greater (s a b) (> (+ a s) b))
 (defun is-in-rect-bounds (w h origin x2 y2 w2 h2)
-  (let ((x1 (gamekit:x origin)) (y1 (gamekit:y origin)))
+  (let ((x1 (+ (gamekit:x origin) w)) (y1 (+ (gamekit:y origin) h)))
   (return-from is-in-rect-bounds 
                (and (check-less w x1 x2) (check-greater w2 x1 x2)
                     (check-less h y1 y2) (check-greater h2 y1 y2)))))
