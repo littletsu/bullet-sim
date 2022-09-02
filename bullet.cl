@@ -206,9 +206,6 @@
 (defun calc-ctx-menu-origin (object i) 
   (gamekit:subt 
     (origin object) (calc-menu-origin i object)))
-(defun calc-real-ctx-menu-origin (object i) 
-  (gamekit:subt
-    (origin object) (calc-menu-origin i object)))
 
 (defmethod draw ((object context-menu))
   (let ((text-origin (calc-menu-text-origin object)))
@@ -259,7 +256,7 @@
   (is-in-rect-bounds 
     (element-w ctx-menu) 
     (element-h ctx-menu) 
-    (calc-real-ctx-menu-origin ctx-menu i) 
+    (calc-ctx-menu-origin ctx-menu i) 
     *mouse-x* 
     *mouse-y*
     (element-w ctx-menu)
