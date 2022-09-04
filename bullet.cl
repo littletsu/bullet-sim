@@ -151,11 +151,33 @@
    (input-color
      :accessor input-color
      :initarg :input-color
+     :allocation :class
      :initform (gamekit:vec4 0 0 0 1))
    (output-color
      :accessor output-color
      :initarg :output-color
+     :allocation :class
      :initform (gamekit:vec4 0 0 0 1))
+   (input-w
+     :accessor input-w
+     :initarg :input-w
+     :allocation :class
+     :initform 5)
+   (input-h
+     :accessor input-h
+     :initarg :input-h
+     :allocation :class
+     :initform 5)
+   (output-w
+     :accessor output-w
+     :initarg :output-w
+     :allocation :class
+     :initform 5)
+   (output-h
+     :accessor output-h
+     :initarg :output-h
+     :allocation :class
+     :initform 5)
    (output
      :accessor output
      :initarg :output
@@ -165,19 +187,27 @@
 (defgeneric run-brick (object)
   (:documentation "Executes code for a brick"))
 
+(defun calc-input-origin (i object)
+  (gamekit:add (origin object)
+               (gamekit:vec2 (* i (* (input-w object) 2)) 0)))
+
+(defun calc-output-origin (i object)
+  (gamekit:add (gamekit:subt 
+                 (origin object)
+                 (gamekit:vec2 0 (- (output-h object) (h object))))
+               (gamekit:vec2 (* i (* (output-w object) 2)) 0)))
+
 (defmethod draw ((object brick))
   (gamekit:draw-rect (origin object) (w object) (h object)
                      :fill-paint (color object))
   (dotimes (i (length (input object)))
-    (gamekit:draw-rect (gamekit:add (origin object)
-                                    (gamekit:vec2 (* i 10) 0))
-                       5 5 :fill-paint (input-color object)))
+    (gamekit:draw-rect (calc-input-origin i object)
+      (input-w object) (input-h object) 
+      :fill-paint (input-color object)))
   (dotimes (i (length (output object)))
-    (gamekit:draw-rect (gamekit:add (gamekit:subt 
-                                      (origin object)
-                                      (gamekit:vec2 0 (- 5 (h object))))
-                                    (gamekit:vec2 (* i 10) 0))
-                       5 5 :fill-paint (output-color object)))
+    (gamekit:draw-rect (calc-output-origin i object) 
+      (output-w object) (output-h object)
+      :fill-paint (output-color object)))
   (gamekit:draw-text (text object) (gamekit:add 
                                      (origin object) 
                                      (gamekit:vec2 (w object) (h object))) 
