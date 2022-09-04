@@ -118,7 +118,7 @@
   (:documentation "A single bullet"))
 
 (defun make-adj-arr () (make-array '(0) :adjustable t :fill-pointer t))
-
+(defun make-empty-arr (len) (make-array len :initial-element 'none))
 (defclass brick (2d-object)
   ((children
      :accessor children
@@ -144,10 +144,22 @@
      :initarg :color
      :allocation :class
      :initform (gamekit:vec4 0 1 1 1))
-   (args
-     :accessor args
-     :initarg :args
-     :initform (make-adj-arr)))
+   (input
+     :accessor input
+     :initarg :input
+     :initform (make-empty-arr 2))
+   (input-color
+     :accessor input-color
+     :initarg :input-color
+     :initform (gamekit:vec4 0 0 0 1))
+   (output-color
+     :accessor output-color
+     :initarg :output-color
+     :initform (gamekit:vec4 0 0 0 1))
+   (output
+     :accessor output
+     :initarg :output
+     :initform (make-empty-arr 2)))
   (:documentation "A generic brick"))
 
 (defgeneric run-brick (object)
@@ -156,6 +168,16 @@
 (defmethod draw ((object brick))
   (gamekit:draw-rect (origin object) (w object) (h object)
                      :fill-paint (color object))
+  (dotimes (i (length (input object)))
+    (gamekit:draw-rect (gamekit:add (origin object)
+                                    (gamekit:vec2 (* i 10) 0))
+                       5 5 :fill-paint (input-color object)))
+  (dotimes (i (length (output object)))
+    (gamekit:draw-rect (gamekit:add (gamekit:subt 
+                                      (origin object)
+                                      (gamekit:vec2 0 (- 5 (h object))))
+                                    (gamekit:vec2 (* i 10) 0))
+                       5 5 :fill-paint (output-color object)))
   (gamekit:draw-text (text object) (gamekit:add 
                                      (origin object) 
                                      (gamekit:vec2 (w object) (h object))) 
@@ -233,6 +255,9 @@
 (defvar *mouse-w* 1)
 (defvar *mouse-h* 1)
 
+(defun push-brick (&optional (brick 'brick))
+  (aref *bricks* (vector-push-extend (make-instance brick) *bricks*)))
+
 (defun push-context-menu (origin)
   (aref *ui* (vector-push-extend (make-instance 'context-menu :origin origin) *ui*)))
 
@@ -261,6 +286,17 @@
     *mouse-y*
     (element-w ctx-menu)
     *mouse-h*))
+(defun find-mouse-brick ()
+  (loop-array *bricks* brick
+    (when (mouse-on brick)
+      (return-from find-mouse-brick brick))))
+
+(defun ctx-menu-input () 
+  (format t "Input~%"))
+
+(defun ctx-menu-new ()
+  (setf (origin (push-brick)) (gamekit:vec2 *mouse-x* *mouse-y*)))
+
 (defun gamekit-cursor-bind ()
   (gamekit:bind-cursor 
     (lambda (x y)
@@ -279,17 +315,15 @@
               (funcall (run menu))
               (setf *ui* (make-adj-arr))
               (return-from mouse-left))))
-      (loop-array *bricks* brick 
-        (when (mouse-on brick)
-          (format t "Brick ~%")
-          (setf *draggingbrick* brick))))))
+      (format t "Brick ~%")
+      (setf *draggingbrick* (find-mouse-brick)))))
 
   (gamekit:bind-button :mouse-right :pressed
     (lambda ()
       (let ((ctx-menu (push-context-menu (gamekit:vec2 *mouse-x* *mouse-y*))))
-        (push-menu-element "Input" (lambda () (format t "Input")) ctx-menu)
+        (push-menu-element "Input" #'ctx-menu-input ctx-menu)
         (push-menu-element "Output" (lambda () (format t "Output")) ctx-menu)
-        (push-menu-element "Add" (lambda () (format t "Add")) ctx-menu)
+        (push-menu-element "New" #'ctx-menu-new ctx-menu)
         (push-menu-element "Edit" (lambda () (format t "Edit")) ctx-menu)
         (push-menu-element "Delete" (lambda () (format t "delete")) ctx-menu)
     )))
