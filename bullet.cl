@@ -5,7 +5,6 @@
 
 (defvar *black* (gamekit:vec4 0 0 0 1))
 (defvar *red*   (gamekit:vec4 1 0 0 1))
-(defvar *origin* (gamekit:vec2 0 0))
 
 (gamekit:define-font :brick-font "assets/NotoSans-Regular.ttf")
 (defvar *font* nil)
