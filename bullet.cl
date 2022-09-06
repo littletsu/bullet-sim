@@ -324,8 +324,8 @@
 (defun ctx-menu-input () 
   (format t "Input~%"))
 
-(defun ctx-menu-new ()
-  (setf (origin (push-brick)) (gamekit:vec2 *mouse-x* *mouse-y*)))
+(defun ctx-menu-new (object)
+  (setf (origin (push-brick)) (origin object)))
 
 (defun gamekit-cursor-bind ()
   (gamekit:bind-cursor 
@@ -353,7 +353,9 @@
       (let ((ctx-menu (push-context-menu (gamekit:vec2 *mouse-x* *mouse-y*))))
         (push-menu-element "Input" #'ctx-menu-input ctx-menu)
         (push-menu-element "Output" (lambda () (format t "Output")) ctx-menu)
-        (push-menu-element "New" #'ctx-menu-new ctx-menu)
+        (push-menu-element "New" 
+          (lambda () (funcall #'ctx-menu-new ctx-menu)) 
+          ctx-menu)
         (push-menu-element "Edit" (lambda () (format t "Edit")) ctx-menu)
         (push-menu-element "Delete" (lambda () (format t "delete")) ctx-menu)
     )))
