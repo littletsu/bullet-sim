@@ -39,6 +39,25 @@
 (defmethod draw ((object 2d-object)) ())
 (defmethod update ((object 2d-object)) ())
 
+(defclass line (2d-object)
+  ((end
+     :accessor end
+     :initarg :end
+     :initform (gamekit:vec2 0 0))
+   (color
+     :accessor color
+     :initarg :color
+     :initform *black*)
+   (thickness
+     :accessor thickness
+     :initarg :thickness
+     :initform 1))
+  (:documentation "A line that goes from origin to end"))
+
+(defmethod draw ((object line))
+  (gamekit:draw-line (origin object) (end object) (color object)
+                     :thickness (thickness object)))
+
 (defclass translatable (2d-object)
   ((target
      :accessor target
@@ -277,15 +296,33 @@
 (defvar *bullets* (make-adj-arr))
 (defvar *bricks* (make-adj-arr))
 (defvar *ui* (make-adj-arr))
+(defvar *other* (make-adj-arr))
 (defvar *dragging* nil)
 (defvar *draggingbrick* nil)
 (defvar *mouse-x* 10000)
 (defvar *mouse-y* 10000)
 (defvar *mouse-w* 1)
 (defvar *mouse-h* 1)
+(defvar *dragginginput* nil)
+(defvar *draggingoutput* nil)
+
+(defclass mouse-line (line) () (:documentation "A line that goes from origin to the mouse position"))
+
+(defmethod update ((object mouse-line))
+  (setf (end object) (gamekit:vec2 *mouse-x* *mouse-y*)))
 
 (defun push-brick (&optional (brick 'brick))
   (aref *bricks* (vector-push-extend (make-instance brick) *bricks*)))
+
+(defun push-mouse-line (origin &optional (color *black*) (thickness 1))
+  (aref *other* (vector-push-extend 
+                  (make-instance 
+                    'mouse-line 
+                    :origin origin
+                    :end origin
+                    :color color
+                    :thickness thickness)
+                  *other*)))
 
 (defun push-context-menu (origin)
   (aref *ui* (vector-push-extend (make-instance 'context-menu :origin origin) *ui*)))
@@ -405,15 +442,16 @@
       (multiple-value-bind 
             (brick input output) 
             (find-mouse-brick)
+        (when (or input output) (setf *other* (make-adj-arr)))
         (when input
-          (format t "InputBrick~%")
+          (setf *dragginginput* input)
+          (push-mouse-line (calc-input-origin input brick))
           (return-from mouse-left))
         (when output
-          (format t "OUTPUTBRICK~%")
+          (setf *draggingoutput* output)
+          (push-mouse-line (calc-output-origin output brick))
           (return-from mouse-left))
-        (when brick (format t "Brick ~%"))
-        (setf *draggingbrick* brick)
-        ))))
+        (setf *draggingbrick* brick)))))
 
   (gamekit:bind-button :mouse-right :pressed
     (lambda ()
@@ -475,15 +513,22 @@
 
 (defvar *ticks* 0)
 
+(defmacro loop-update (arr)
+  `(loop-array ,arr el (update el)))
+(defmacro loop-draw (arr)
+  `(loop-array ,arr el (draw el)))
+
 (defmethod gamekit:act ((app bullet-sim))
   (incf *ticks*)
-  (loop-array *bullets* bullet (update bullet))
-  (loop-array *bricks* brick (update brick))
-  (loop-array *ui* ui (update ui)))
+  (loop-update *bullets*)
+  (loop-update *bricks*)
+  (loop-update *ui*)
+  (loop-update *other*))
 
 (defmethod gamekit:draw ((app bullet-sim))
-  (loop-array *bullets* bullet (draw bullet))
-  (loop-array *bricks* brick (draw brick))
-  (loop-array *ui* ui (draw ui)))
+  (loop-draw *bullets*)
+  (loop-draw *bricks*)
+  (loop-draw *ui*)
+  (loop-draw *other*))
 
 (gamekit:start 'bullet-sim)
