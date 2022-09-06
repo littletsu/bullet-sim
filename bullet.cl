@@ -19,6 +19,10 @@
   `(loop :for i :from 0 :below (length ,arr) :do
          (let ((,el (aref ,arr i))) ,@body)))
 
+(defmacro do-array (arr &body body)
+  `(dotimes (i (length ,arr))
+         ,@body))
+
 (defgeneric draw (object) 
   (:documentation "Draw an object in the game"))
 
@@ -158,6 +162,16 @@
      :initarg :output-color
      :allocation :class
      :initform (gamekit:vec4 0 0 0 1))
+   (input-hover-color
+     :accessor input-hover-color
+     :initarg :input-hover-color
+     :allocation :class
+     :initform (gamekit:vec4 1 0 0 1))
+   (output-hover-color
+     :accessor output-hover-color
+     :initarg :output-hover-color
+     :allocation :class
+     :initform (gamekit:vec4 1 0 0 1))  
    (input-w
      :accessor input-w
      :initarg :input-w
@@ -197,21 +211,6 @@
                  (gamekit:vec2 0 (- (output-h object) (h object))))
                (gamekit:vec2 (* i (* (output-w object) 2)) 0)))
 
-(defmethod draw ((object brick))
-  (gamekit:draw-rect (origin object) (w object) (h object)
-                     :fill-paint (color object))
-  (dotimes (i (length (input object)))
-    (gamekit:draw-rect (calc-input-origin i object)
-      (input-w object) (input-h object) 
-      :fill-paint (input-color object)))
-  (dotimes (i (length (output object)))
-    (gamekit:draw-rect (calc-output-origin i object) 
-      (output-w object) (output-h object)
-      :fill-paint (output-color object)))
-  (gamekit:draw-text (text object) (gamekit:add 
-                                     (origin object) 
-                                     (gamekit:vec2 (w object) (h object))) 
-                                     :font *font*))
 (defclass menu-element ()
   ((text
      :accessor text
@@ -307,6 +306,24 @@
     *mouse-y*
     *mouse-w*
     *mouse-h*))
+(defun mouse-on-input (i object) 
+  (is-in-rect-bounds 
+    (input-w object) 
+    (input-h object) 
+    (calc-input-origin i object) 
+    *mouse-x* 
+    *mouse-y*
+    *mouse-w*
+    *mouse-h*))
+(defun mouse-on-output (i object) 
+  (is-in-rect-bounds 
+    (output-w object) 
+    (output-h object) 
+    (calc-output-origin i object) 
+    *mouse-x* 
+    *mouse-y*
+    *mouse-w*
+    *mouse-h*))
 (defun mouse-on-menu (ctx-menu i) 
   (is-in-rect-bounds 
     (element-w ctx-menu) 
@@ -316,11 +333,50 @@
     *mouse-y*
     (element-w ctx-menu)
     *mouse-h*))
+
+(defun find-mouse-input (object)
+  (do-array (input object)
+    (when (mouse-on-input i object)
+      (return-from find-mouse-input i))))
+(defun find-mouse-output (object)
+  (do-array (output object)
+    (when (mouse-on-output i object)
+      (return-from find-mouse-output i))))
 (defun find-mouse-brick ()
   (loop-array *bricks* brick
     (when (mouse-on brick)
-      (return-from find-mouse-brick brick))))
+      (return-from 
+        find-mouse-brick 
+        (values 
+          brick 
+          (find-mouse-input brick)
+          (find-mouse-output brick))))))
 
+(defun get-input-color (i object)
+  (if 
+    (mouse-on-input i object)
+    (input-hover-color object)
+    (input-color object)))
+(defun get-output-color (i object)
+  (if 
+    (mouse-on-output i object)
+    (output-hover-color object)
+    (output-color object)))
+(defmethod draw ((object brick))
+  (gamekit:draw-rect (origin object) (w object) (h object)
+                     :fill-paint (color object))
+  (do-array (input object)
+    (gamekit:draw-rect (calc-input-origin i object)
+      (input-w object) (input-h object) 
+      :fill-paint (get-input-color i object)))
+  (do-array (output object)
+    (gamekit:draw-rect (calc-output-origin i object) 
+      (output-w object) (output-h object)
+      :fill-paint (get-output-color i object)))
+  (gamekit:draw-text (text object) (gamekit:add 
+                                     (origin object) 
+                                     (gamekit:vec2 (w object) (h object))) 
+                                     :font *font*))
 (defun ctx-menu-input () 
   (format t "Input~%"))
 
@@ -345,8 +401,19 @@
               (funcall (run menu))
               (setf *ui* (make-adj-arr))
               (return-from mouse-left))))
-      (format t "Brick ~%")
-      (setf *draggingbrick* (find-mouse-brick)))))
+
+      (multiple-value-bind 
+            (brick input output) 
+            (find-mouse-brick)
+        (when input
+          (format t "InputBrick~%")
+          (return-from mouse-left))
+        (when output
+          (format t "OUTPUTBRICK~%")
+          (return-from mouse-left))
+        (when brick (format t "Brick ~%"))
+        (setf *draggingbrick* brick)
+        ))))
 
   (gamekit:bind-button :mouse-right :pressed
     (lambda ()
