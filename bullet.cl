@@ -219,6 +219,12 @@
 (defgeneric run-brick (object)
   (:documentation "Executes code for a brick"))
 
+(defmethod set-input (i new-input (object brick))
+  (setf (aref (input object) i) new-input))
+
+(defmethod set-output (i new-output (object brick))
+  (setf (aref (output object) i) new-output))
+
 (defun calc-input-origin (i object)
   (gamekit:add (origin object)
                (gamekit:vec2 (* i (* (input-w object) 2)) 0)))
@@ -302,6 +308,7 @@
 (defvar *mouse-y* 10000)
 (defvar *mouse-w* 1)
 (defvar *mouse-h* 1)
+(defvar *mousebrick* nil)
 (defvar *dragginginput* nil)
 (defvar *draggingoutput* nil)
 
@@ -398,6 +405,12 @@
     (mouse-on-output i object)
     (output-hover-color object)
     (output-color object)))
+(defun draw-output-line (i object output)
+  (when (not (eq output 'none))
+    (gamekit:draw-line 
+      (calc-output-origin i object) 
+      (calc-input-origin (car output) (cdr output)) 
+      *black*)))
 (defmethod draw ((object brick))
   (gamekit:draw-rect (origin object) (w object) (h object)
                      :fill-paint (color object))
@@ -405,7 +418,8 @@
     (gamekit:draw-rect (calc-input-origin i object)
       (input-w object) (input-h object) 
       :fill-paint (get-input-color i object)))
-  (do-array (output object)
+  (loop-array (output object) output
+    (draw-output-line i object output)
     (gamekit:draw-rect (calc-output-origin i object) 
       (output-w object) (output-h object)
       :fill-paint (get-output-color i object)))
@@ -441,13 +455,26 @@
       (multiple-value-bind 
             (brick input output) 
             (find-mouse-brick)
-        (when (or input output) (setf *other* (make-adj-arr)))
         (when input
+          (setf *other* (make-adj-arr))
+          (when *draggingoutput*
+            (set-output *draggingoutput* (list input brick) *mousebrick*)
+            (setf *draggingoutput* nil)
+            (setf *dragginginput* nil)
+            (return-from mouse-left))
           (setf *dragginginput* input)
+          (setf *mousebrick* brick)
           (push-mouse-line (calc-input-origin input brick))
           (return-from mouse-left))
         (when output
+          (setf *other* (make-adj-arr))
+          (when *dragginginput*
+            (set-input *dragginginput* (list output brick) *mousebrick*)
+            (setf *dragginginput* nil)
+            (setf *draggingoutput* nil)
+            (return-from mouse-left))
           (setf *draggingoutput* output)
+          (setf *mousebrick* brick)
           (push-mouse-line (calc-output-origin output brick))
           (return-from mouse-left))
         (setf *draggingbrick* brick)))))
